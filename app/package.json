@@ -1,0 +1,19 @@
+{
+  "name": "tic-tac-toe-ui",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "ui5 serve",
+    "build": "ui5 build --clean-dest"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "@ui5/cli": "^3.0.0"
+  },
+  "dependencies": {
+    "@cap-js/sqlite": "^2.1.3"
+  }
+}

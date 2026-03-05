@@ -1,0 +1,11 @@
+<mvc:View
+  controllerName="tictactoe.app.controller.App"
+  xmlns:mvc="sap.ui.core.mvc"
+  xmlns="sap.m"
+  displayBlock="true">
+<Page title="Tic Tac Toe" enableScrolling="false" class="sapUiContentPadding greyBackground">
+    <content>
+      <Text text="Hello from UI5!" />
+    </content>
+  </Page>
+</mvc:View>
