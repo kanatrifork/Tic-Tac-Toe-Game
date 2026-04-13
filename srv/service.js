@@ -33,9 +33,11 @@ module.exports = cds.service.impl(function () {
       ID: cds.utils.uuid(),
       board: "---------",
       winner: null,
+      createdAt: new Date().toISOString(),
+      completedAt: null,
     };
     await INSERT.into(Games).entries(entry);
-    return entry; // 👈 no extra SELECT needed
+    return entry;
   });
 
   this.on("makeMove", async (req) => {
@@ -55,10 +57,11 @@ module.exports = cds.service.impl(function () {
     const updated = {
       board: cells.join(""),
       winner: winner ?? null,
+      completedAt: winner ? new Date().toISOString() : null,
     };
 
     await UPDATE(Games).set(updated).where({ ID: gameId });
 
-    return { ...game, ...updated }; // 👈 no extra SELECT
+    return { ...game, ...updated };
   });
 });

@@ -8,27 +8,38 @@
   <App>
     <Page title="Tic Tac Toe" class="sapUiContentPadding">
       <content>
-        <Text text="{game>/statusText}" class="sapUiSmallMarginBottom" />
+        <HBox class="page-content">
 
-        <VBox class="sapUiSmallMarginBottom board">
-          <HBox>
-            <Button text="{game>/cells/0}" press=".onCellPress" data:pos="0" class="cell"/>
-            <Button text="{game>/cells/1}" press=".onCellPress" data:pos="1" class="cell"/>
-            <Button text="{game>/cells/2}" press=".onCellPress" data:pos="2" class="cell"/>
-          </HBox>
-          <HBox>
-            <Button text="{game>/cells/3}" press=".onCellPress" data:pos="3" class="cell"/>
-            <Button text="{game>/cells/4}" press=".onCellPress" data:pos="4" class="cell"/>
-            <Button text="{game>/cells/5}" press=".onCellPress" data:pos="5" class="cell"/>
-          </HBox>
-          <HBox>
-            <Button text="{game>/cells/6}" press=".onCellPress" data:pos="6" class="cell"/>
-            <Button text="{game>/cells/7}" press=".onCellPress" data:pos="7" class="cell"/>
-            <Button text="{game>/cells/8}" press=".onCellPress" data:pos="8" class="cell"/>
-          </HBox>
-        </VBox>
+          <VBox class="sapUiSmallMarginBottom board">
+            <Text text="{game>/statusText}" />
+            <HBox class="board-row">
+              <Button text="{game>/cells/0}" press=".onCellPress" data:pos="0" class="cell"/>
+              <Button text="{game>/cells/1}" press=".onCellPress" data:pos="1" class="cell"/>
+              <Button text="{game>/cells/2}" press=".onCellPress" data:pos="2" class="cell"/>
+            </HBox>
+            <HBox class="board-row">
+              <Button text="{game>/cells/3}" press=".onCellPress" data:pos="3" class="cell"/>
+              <Button text="{game>/cells/4}" press=".onCellPress" data:pos="4" class="cell"/>
+              <Button text="{game>/cells/5}" press=".onCellPress" data:pos="5" class="cell"/>
+            </HBox>
+            <HBox class="board-row">
+              <Button text="{game>/cells/6}" press=".onCellPress" data:pos="6" class="cell"/>
+              <Button text="{game>/cells/7}" press=".onCellPress" data:pos="7" class="cell"/>
+              <Button text="{game>/cells/8}" press=".onCellPress" data:pos="8" class="cell"/>
+            </HBox>
+            <Button text="New Game" press=".onNewGame" type="Emphasized" />
+          </VBox>
 
-        <Button text="New Game" press=".onNewGame" type="Emphasized" />
+          <VBox class="history-container">
+            <Title text="Match History"/>
+            <List noDataText="No completed games yet"
+                  items="{game>/history}">
+              <StandardListItem
+                title="{= ${game>winner} === 'draw' ? 'Draw' : 'Player ' + ${game>winner} + ' won'}"
+                description="{game>completedAtFormatted}" />
+            </List>
+          </VBox>
+        </HBox>
       </content>
     </Page>
   </App>
