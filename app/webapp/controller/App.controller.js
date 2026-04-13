@@ -10,46 +10,124 @@ sap.ui.define(
   function (Controller, JSONModel, MessageBox, Filter, FilterOperator, Sorter) {
     "use strict";
 
-    const STORAGE_KEY = "gameId";
+    const GAME_STORAGE_KEY = "gameId";
+    const SESSION_STORAGE_KEY = "sessionId";
 
     return Controller.extend("tictactoe.app.controller.App", {
       onInit: function () {
-        const oModel = new JSONModel({
+        const oGameModel = new JSONModel({
           gameId: null,
           cells: ["", "", "", "", "", "", "", "", ""],
-          statusText: "Press 'New Game' to start",
+          statusText: "Start a new session to play",
           canPlay: true,
           gameOver: false,
+          gameState: "NOT_STARTED",
           history: [],
         });
-        this.getView().setModel(oModel, "game");
+        this.getView().setModel(oGameModel, "game");
 
-        const sSavedId = localStorage.getItem(STORAGE_KEY);
-        if (sSavedId) {
-          this._loadGame(sSavedId);
+        const oSessionModel = new JSONModel({
+          sessionId: null,
+          bestOf: 3,
+          xWins: 0,
+          oWins: 0,
+          draws: 0,
+          sessionWinner: null,
+          winsNeeded: 2,
+        });
+        this.getView().setModel(oSessionModel, "session");
+
+        const sSavedSessionId = localStorage.getItem(SESSION_STORAGE_KEY);
+        if (sSavedSessionId) {
+          this._loadSessionData(sSavedSessionId);
         }
         this._loadHistory();
       },
 
-      onNewGame: function () {
-        localStorage.removeItem(STORAGE_KEY);
-        const oModel = this.getView().getModel("game");
-        oModel.setProperty("/gameOver", false);
-        const oDataModel = this.getOwnerComponent().getModel();
-
-        const oAction = oDataModel.bindContext("/newGame(...)");
-        oAction
-          .execute()
-          .then(() => {
-            const oGame = oAction.getBoundContext().getObject();
-            this._applyGame(oGame);
-          })
-          .catch((oErr) => {
-            MessageBox.error("Could not start a new game: " + oErr.message);
-          });
+      _resetGameModel: function () {
+        this.getView().getModel("game").setData({
+          gameId: null,
+          cells: ["", "", "", "", "", "", "", "", ""],
+          statusText: "Start a new session to play",
+          canPlay: true,
+          gameOver: false,
+          gameState: "NOT_STARTED",
+          history: [],
+        });
       },
 
-      onCellPress: function (oEvent) {
+      _resetSessionModel: function () {
+        this.getView().getModel("session").setData({
+          sessionId: null,
+          bestOf: 3,
+          xWins: 0,
+          oWins: 0,
+          draws: 0,
+          sessionWinner: null,
+          winsNeeded: 2,
+        });
+      },
+
+      _callAction: async function (sAction, mParams = {}) {
+        const oModel = this.getOwnerComponent().getModel();
+        const oAction = oModel.bindContext(sAction);
+
+        Object.entries(mParams).forEach(([k, v]) => {
+          oAction.setParameter(k, v);
+        });
+
+        await oAction.execute();
+        return oAction.getBoundContext().getObject();
+      },
+
+      _saveIds: function (oGame, oSession) {
+        if (oGame?.ID) localStorage.setItem(GAME_STORAGE_KEY, oGame.ID);
+        if (oSession?.ID) localStorage.setItem(SESSION_STORAGE_KEY, oSession.ID);
+      },
+
+      onNewSession: async function () {
+        const oSessionModel = this.getView().getModel("session");
+        const iBestOf = parseInt(oSessionModel.getProperty("/bestOf"), 10);
+
+        try {
+          const oSession = await this._callAction("/newSession(...)", { bestOf: iBestOf });
+          this._applySession(oSession);
+          this._startNewGame();
+        } catch (oErr) {
+          MessageBox.error("Could not start session: " + oErr.message);
+        }
+      },
+
+      onEndSession: function () {
+        localStorage.removeItem(SESSION_STORAGE_KEY);
+        localStorage.removeItem(GAME_STORAGE_KEY);
+
+        this._resetSessionModel();
+        this._resetGameModel();
+      },
+
+      onNextMatch: function () {
+        this._startNewGame();
+      },
+
+      _startNewGame: async function () {
+        const oSessionModel = this.getView().getModel("session");
+        const sSessionId = oSessionModel.getProperty("/sessionId");
+
+        if (!sSessionId) return;
+
+        const oGameModel = this.getView().getModel("game");
+        oGameModel.setProperty("/gameOver", false);
+
+        try {
+          const oGame = await this._callAction("/newGame(...)", { sessionId: sSessionId });
+          this._applyGame(oGame);
+        } catch (oErr) {
+          MessageBox.error("Could not start a new game: " + oErr.message);
+        }
+      },
+
+      onCellPress: async function (oEvent) {
         const oButton = oEvent.getSource();
         const iPos = parseInt(oButton.data("pos"), 10);
         const oModel = this.getView().getModel("game");
@@ -58,41 +136,88 @@ sap.ui.define(
 
         if (!sGameId || bGameOver) return;
 
-        const oDataModel = this.getOwnerComponent().getModel();
-        const oAction = oDataModel.bindContext("/makeMove(...)");
-        oAction.setParameter("gameId", sGameId);
-        oAction.setParameter("position", iPos);
-
-        oAction
-          .execute()
-          .then(() => {
-            const oGame = oAction.getBoundContext().getObject();
-            this._applyGame(oGame);
-            if (oGame.winner) {
-              this._loadHistory();
-            }
-          })
-          .catch((oErr) => {
-            const sMsg = oErr.error?.message ?? oErr.message ?? "Move failed";
-            MessageBox.warning(sMsg);
-          });
+        try {
+          const oGame = await this._callAction("/makeMove(...)", { gameId: sGameId, position: iPos });
+          this._applyGame(oGame);
+          if (oGame.winner) {
+            this._loadHistory();
+            this._loadSessionData();
+          }
+        } catch (oErr) {
+          const sMsg = oErr.error?.message ?? oErr.message ?? "Move failed";
+          MessageBox.warning(sMsg);
+        }
       },
 
-      _loadGame: function (sGameId) {
-        const oDataModel = this.getOwnerComponent().getModel();
-        const oContext = oDataModel.bindContext("/Games(" + sGameId + ")");
-        oContext
-          .requestObject()
-          .then((oGame) => {
-            if (oGame) {
-              this._applyGame(oGame);
-            } else {
-              localStorage.removeItem(STORAGE_KEY);
-            }
-          })
-          .catch(() => {
-            localStorage.removeItem(STORAGE_KEY);
+      _loadSessionData: async function (sSessionId) {
+        if (!sSessionId) {
+          sSessionId = this.getView().getModel("session").getProperty("/sessionId");
+        }
+        if (!sSessionId) return;
+
+        const oSession = await this._loadSession(sSessionId);
+        if (!oSession) return;
+
+        const sSavedGameId = localStorage.getItem(GAME_STORAGE_KEY);
+        if (sSavedGameId) {
+          await this._loadGame(sSavedGameId);
+        }
+      },
+
+      _loadSession: async function (sSessionId) {
+        try {
+          const oDataModel = this.getOwnerComponent().getModel();
+          const oCtx = oDataModel.bindContext("/Sessions(" + sSessionId + ")");
+          const oSession = await oCtx.requestObject();
+
+          if (oSession) {
+            this._applySession(oSession);
+            return oSession;
+          }
+        } catch {}
+
+        localStorage.removeItem(SESSION_STORAGE_KEY);
+        localStorage.removeItem(GAME_STORAGE_KEY);
+        return null;
+      },
+
+      _loadGame: async function (sGameId) {
+        try {
+          const oDataModel = this.getOwnerComponent().getModel();
+          const oCtx = oDataModel.bindContext("/Games(" + sGameId + ")");
+          const oGame = await oCtx.requestObject();
+
+          if (oGame) {
+            this._applyGame(oGame, true);
+            return oGame;
+          }
+        } catch {}
+
+        localStorage.removeItem(GAME_STORAGE_KEY);
+        return null;
+      },
+
+      _applySession: function (oSession) {
+        if (!oSession) return;
+        const oModel = this.getView().getModel("session");
+        const iWinsNeeded = Math.floor(oSession.bestOf / 2) + 1;
+
+        this._saveIds(null, oSession);
+
+        oModel.setProperty("/sessionId", oSession.ID);
+        oModel.setProperty("/bestOf", oSession.bestOf);
+        oModel.setProperty("/xWins", oSession.xWins);
+        oModel.setProperty("/oWins", oSession.oWins);
+        oModel.setProperty("/draws", oSession.draws);
+        oModel.setProperty("/sessionWinner", oSession.sessionWinner);
+        oModel.setProperty("/winsNeeded", iWinsNeeded);
+
+        if (oSession.sessionWinner) {
+          this.getView().getModel("game").setProperty("/gameState", "SESSION_OVER");
+          MessageBox.success("Player " + oSession.sessionWinner + " wins the session!", {
+            title: "Session Complete"
           });
+        }
       },
 
       _loadHistory: function () {
@@ -127,11 +252,16 @@ sap.ui.define(
         });
       },
 
-      _applyGame: function (oGame) {
+      _applyGame: function (oGame, bSuppressMessage) {
         if (!oGame) return;
         const oModel = this.getView().getModel("game");
+        const oSessionModel = this.getView().getModel("session");
         const aCells = oGame.board.split("").map((c) => (c === "-" ? "" : c));
         const bOver = !!oGame.winner;
+
+        // Use backend-provided currentPlayer, or compute fallback for loaded games
+        const sCurrentPlayer = oGame.currentPlayer ||
+          (aCells.filter((c) => c === "X").length <= aCells.filter((c) => c === "O").length ? "X" : "O");
 
         let sStatus;
         if (oGame.winner === "draw") {
@@ -139,12 +269,10 @@ sap.ui.define(
         } else if (oGame.winner) {
           sStatus = "Player " + oGame.winner + " wins!";
         } else {
-          const xs = aCells.filter((c) => c === "X").length;
-          const os = aCells.filter((c) => c === "O").length;
-          sStatus = "Player " + (xs <= os ? "X" : "O") + "'s turn";
+          sStatus = "Player " + sCurrentPlayer + "'s turn";
         }
 
-        localStorage.setItem(STORAGE_KEY, oGame.ID);
+        this._saveIds(oGame, null);
 
         oModel.setProperty("/gameId", oGame.ID);
         oModel.setProperty("/cells", aCells);
@@ -152,8 +280,21 @@ sap.ui.define(
         oModel.setProperty("/canPlay", true);
         oModel.setProperty("/gameOver", bOver);
 
-        if (bOver) {
-          MessageBox.information(sStatus, { title: "Game Over" });
+        // Use backend-provided gameState, or compute fallback for loaded games
+        let sGameState = oGame.gameState;
+        if (!sGameState) {
+          if (oSessionModel.getProperty("/sessionWinner")) {
+            sGameState = "SESSION_OVER";
+          } else if (bOver) {
+            sGameState = "MATCH_OVER";
+          } else {
+            sGameState = "PLAYING";
+          }
+        }
+        oModel.setProperty("/gameState", sGameState);
+
+        if (bOver && !bSuppressMessage) {
+          MessageBox.information(sStatus, { title: "Match Over" });
         }
       },
     });

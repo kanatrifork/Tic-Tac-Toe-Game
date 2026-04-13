@@ -25,19 +25,63 @@ const currentPlayer = (cells) =>
     ? "X"
     : "O";
 
-module.exports = cds.service.impl(function () {
-  const { Games } = this.entities;
+const computeGameState = (game, session) => {
+  if (session?.sessionWinner) return "SESSION_OVER";
+  if (game.winner) return "MATCH_OVER";
+  return "PLAYING";
+};
 
-  this.on("newGame", async () => {
+module.exports = cds.service.impl(function () {
+  const { Games, Sessions } = this.entities;
+
+  this.on("newSession", async (req) => {
+    const { bestOf } = req.data;
+
+    if (![3, 5, 7].includes(bestOf)) {
+      return req.error(400, "bestOf must be 3, 5, or 7");
+    }
+
     const entry = {
       ID: cds.utils.uuid(),
+      bestOf,
+      xWins: 0,
+      oWins: 0,
+      draws: 0,
+      sessionWinner: null,
+      createdAt: new Date().toISOString(),
+      completedAt: null,
+    };
+    await INSERT.into(Sessions).entries(entry);
+    return entry;
+  });
+
+  this.on("newGame", async (req) => {
+    const { sessionId } = req.data;
+
+    if (!sessionId) {
+      return req.error(400, "sessionId is required");
+    }
+
+    const session = await SELECT.one.from(Sessions).where({ ID: sessionId });
+    if (!session) return req.error(404, "Session not found");
+    if (session.sessionWinner) return req.error(409, "Session already completed");
+
+    const entry = {
+      ID: cds.utils.uuid(),
+      session_ID: sessionId,
       board: "---------",
       winner: null,
       createdAt: new Date().toISOString(),
       completedAt: null,
     };
     await INSERT.into(Games).entries(entry);
-    return entry;
+
+    const cells = entry.board.split("");
+    return {
+      ...entry,
+      currentPlayer: currentPlayer(cells),
+      gameState: computeGameState(entry, session),
+    };
   });
 
   this.on("makeMove", async (req) => {
@@ -50,7 +94,6 @@ module.exports = cds.service.impl(function () {
     if (game.winner) return req.error(409, "Game over");
 
     const cells = game.board.split("");
-
     cells[position] = currentPlayer(cells);
     const winner = checkWinner(cells);
 
@@ -62,6 +105,43 @@ module.exports = cds.service.impl(function () {
 
     await UPDATE(Games).set(updated).where({ ID: gameId });
 
-    return { ...game, ...updated };
+    if (winner && game.session_ID) {
+      const session = await SELECT.one.from(Sessions).where({ ID: game.session_ID });
+      if (session) {
+        const sessionUpdate = {};
+        if (winner === "X") {
+          sessionUpdate.xWins = session.xWins + 1;
+        } else if (winner === "O") {
+          sessionUpdate.oWins = session.oWins + 1;
+        } else if (winner === "draw") {
+          sessionUpdate.draws = session.draws + 1;
+        }
+
+        const winsNeeded = Math.floor(session.bestOf / 2) + 1;
+        const newXWins = sessionUpdate.xWins ?? session.xWins;
+        const newOWins = sessionUpdate.oWins ?? session.oWins;
+
+        if (newXWins >= winsNeeded) {
+          sessionUpdate.sessionWinner = "X";
+          sessionUpdate.completedAt = new Date().toISOString();
+        } else if (newOWins >= winsNeeded) {
+          sessionUpdate.sessionWinner = "O";
+          sessionUpdate.completedAt = new Date().toISOString();
+        }
+
+        await UPDATE(Sessions).set(sessionUpdate).where({ ID: game.session_ID });
+      }
+    }
+
+    const updatedSession = game.session_ID
+      ? await SELECT.one.from(Sessions).where({ ID: game.session_ID })
+      : null;
+
+    return {
+      ...game,
+      ...updated,
+      currentPlayer: currentPlayer(cells),
+      gameState: computeGameState({ ...game, ...updated }, updatedSession),
+    };
   });
 });
