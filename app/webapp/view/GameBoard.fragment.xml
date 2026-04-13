@@ -20,6 +20,5 @@
       <Button text="{game>/cells/7}" press=".onCellPress" data:pos="7" class="cell"/>
       <Button text="{game>/cells/8}" press=".onCellPress" data:pos="8" class="cell"/>
     </HBox>
-    <Button text="New Game" press=".onNewGame" type="Emphasized" />
   </VBox>
 </core:FragmentDefinition>

@@ -5,6 +5,57 @@
   padding: 1rem;
 }
 
+.game-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.session-config {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.session-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.score-display {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.score-separator {
+  font-size: 1.5rem;
+  font-weight: bold;
+}
+
+.draws-text {
+  color: #666;
+}
+
+.session-format {
+  font-size: 0.875rem;
+  color: #666;
+}
+
+.session-actions {
+  margin-top: 1rem;
+}
+
+.session-winner {
+  margin-top: 1rem;
+  max-width: 300px;
+}
+
 .board {
   display: flex;
   flex-direction: column;

@@ -9,8 +9,44 @@
     <Page title="Tic Tac Toe" class="sapUiContentPadding">
       <content>
         <HBox class="page-content">
-        
-          <core:Fragment fragmentName="tictactoe.app.view.GameBoard" type="XML"/>
+
+          <VBox class="game-container">
+            <HBox visible="{= ${game>/gameState} === 'NOT_STARTED' }" class="session-config">
+              <Select id="bestOfSelect" selectedKey="{session>/bestOf}">
+                <core:Item key="3" text="Best of 3"/>
+                <core:Item key="5" text="Best of 5"/>
+                <core:Item key="7" text="Best of 7"/>
+              </Select>
+              <Button text="Start Session" press=".onNewSession" type="Emphasized"/>
+            </HBox>
+
+            <VBox visible="{= ${game>/gameState} !== 'NOT_STARTED' }" class="session-info">
+              <HBox class="score-display">
+                <ObjectStatus title="X" text="{session>/xWins}" state="Information"/>
+                <Text text=" - " class="score-separator"/>
+                <ObjectStatus title="O" text="{session>/oWins}" state="Information"/>
+                <Text text="  |  Draws: {session>/draws}" class="draws-text"/>
+              </HBox>
+              <Text text="{= 'Best of ' + ${session>/bestOf}}" class="session-format"/>
+            </VBox>
+
+            <VBox visible="{= ${game>/gameState} !== 'NOT_STARTED' }">
+              <core:Fragment fragmentName="tictactoe.app.view.GameBoard" type="XML"/>
+            </VBox>
+
+            <Button text="Next Match" press=".onNextMatch" type="Emphasized"
+                    visible="{= ${game>/gameState} === 'MATCH_OVER' }"
+                    class="session-action"/>
+
+            <VBox visible="{= ${game>/gameState} === 'SESSION_OVER' }" class="session-complete">
+              <MessageStrip
+                text="{= 'Player ' + ${session>/sessionWinner} + ' wins the session!'}"
+                type="Success"
+                showIcon="true"
+                class="session-winner"/>
+              <Button text="Start New Session" press=".onEndSession" type="Emphasized" class="session-action"/>
+            </VBox>
+          </VBox>
 
           <VBox class="history-container">
             <Title text="Match History"/>
