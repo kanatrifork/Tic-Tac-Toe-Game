@@ -4,21 +4,30 @@
   xmlns:data="http://schemas.sap.com/sapui5/extension/sap.ui.core.CustomData/1">
 
   <VBox class="board">
-    <Text text="{game>/statusText}" />
+    <Text text="{= ${game>/gameState} === 'NOT_STARTED' ? 'Start session to play' : ${game>/statusText} }"/>
     <HBox class="board-row">
-      <Button text="{game>/cells/0}" press=".onCellPress" data:pos="0" class="cell"/>
-      <Button text="{game>/cells/1}" press=".onCellPress" data:pos="1" class="cell"/>
-      <Button text="{game>/cells/2}" press=".onCellPress" data:pos="2" class="cell"/>
+      <Button text="{game>/cells/0}" press=".onCellPress" data:pos="0" class="cell"
+              enabled="{= ${game>/gameState} === 'PLAYING' }"/>
+      <Button text="{game>/cells/1}" press=".onCellPress" data:pos="1" class="cell"
+              enabled="{= ${game>/gameState} === 'PLAYING' }"/>
+      <Button text="{game>/cells/2}" press=".onCellPress" data:pos="2" class="cell"
+              enabled="{= ${game>/gameState} === 'PLAYING' }"/>
     </HBox>
     <HBox class="board-row">
-      <Button text="{game>/cells/3}" press=".onCellPress" data:pos="3" class="cell"/>
-      <Button text="{game>/cells/4}" press=".onCellPress" data:pos="4" class="cell"/>
-      <Button text="{game>/cells/5}" press=".onCellPress" data:pos="5" class="cell"/>
+      <Button text="{game>/cells/3}" press=".onCellPress" data:pos="3" class="cell"
+              enabled="{= ${game>/gameState} === 'PLAYING' }"/>
+      <Button text="{game>/cells/4}" press=".onCellPress" data:pos="4" class="cell"
+              enabled="{= ${game>/gameState} === 'PLAYING' }"/>
+      <Button text="{game>/cells/5}" press=".onCellPress" data:pos="5" class="cell"
+              enabled="{= ${game>/gameState} === 'PLAYING' }"/>
     </HBox>
     <HBox class="board-row">
-      <Button text="{game>/cells/6}" press=".onCellPress" data:pos="6" class="cell"/>
-      <Button text="{game>/cells/7}" press=".onCellPress" data:pos="7" class="cell"/>
-      <Button text="{game>/cells/8}" press=".onCellPress" data:pos="8" class="cell"/>
+      <Button text="{game>/cells/6}" press=".onCellPress" data:pos="6" class="cell"
+              enabled="{= ${game>/gameState} === 'PLAYING' }"/>
+      <Button text="{game>/cells/7}" press=".onCellPress" data:pos="7" class="cell"
+              enabled="{= ${game>/gameState} === 'PLAYING' }"/>
+      <Button text="{game>/cells/8}" press=".onCellPress" data:pos="8" class="cell"
+              enabled="{= ${game>/gameState} === 'PLAYING' }"/>
     </HBox>
   </VBox>
 </core:FragmentDefinition>

@@ -19,11 +19,8 @@
   margin-bottom: 1rem;
 }
 
-.session-info {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.25rem;
+.session-info-wrapper {
+  min-height: 1.5rem;
   margin-bottom: 0.5rem;
 }
 

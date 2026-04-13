@@ -11,26 +11,27 @@
         <HBox class="page-content">
 
           <VBox class="game-container">
-            <HBox visible="{= ${game>/gameState} === 'NOT_STARTED' }" class="session-config">
-              <Select id="bestOfSelect" selectedKey="{session>/bestOf}">
+            <HBox class="session-config">
+              <Select id="bestOfSelect" selectedKey="{session>/bestOf}"
+                      enabled="{= ${game>/gameState} === 'NOT_STARTED' }">
                 <core:Item key="3" text="Best of 3"/>
                 <core:Item key="5" text="Best of 5"/>
                 <core:Item key="7" text="Best of 7"/>
               </Select>
-              <Button text="Start Session" press=".onNewSession" type="Emphasized"/>
+              <Button text="{= ${game>/gameState} === 'NOT_STARTED' ? 'Start Session' : 'Reset Session' }"
+                      press=".onSessionButton" type="Emphasized"/>
             </HBox>
 
-            <VBox visible="{= ${game>/gameState} !== 'NOT_STARTED' }" class="session-info">
-              <HBox class="score-display">
+            <VBox class="session-info-wrapper">
+              <HBox class="score-display" visible="{= ${game>/gameState} !== 'NOT_STARTED' }">
                 <ObjectStatus title="X" text="{session>/xWins}" state="Information"/>
                 <Text text=" - " class="score-separator"/>
                 <ObjectStatus title="O" text="{session>/oWins}" state="Information"/>
                 <Text text="  |  Draws: {session>/draws}" class="draws-text"/>
               </HBox>
-              <Text text="{= 'Best of ' + ${session>/bestOf}}" class="session-format"/>
             </VBox>
 
-            <VBox visible="{= ${game>/gameState} !== 'NOT_STARTED' }">
+            <VBox>
               <core:Fragment fragmentName="tictactoe.app.view.GameBoard" type="XML"/>
             </VBox>
 

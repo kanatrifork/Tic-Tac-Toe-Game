@@ -106,6 +106,15 @@ sap.ui.define(
         this._resetGameModel();
       },
 
+      onSessionButton: function () {
+        const sGameState = this.getView().getModel("game").getProperty("/gameState");
+        if (sGameState === "NOT_STARTED") {
+          this.onNewSession();
+        } else {
+          this.onEndSession();
+        }
+      },
+
       onNextMatch: function () {
         this._startNewGame();
       },
