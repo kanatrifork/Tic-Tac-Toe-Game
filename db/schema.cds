@@ -1,7 +1,9 @@
 namespace tictactoe;
 
 entity Games {
-  key ID  : UUID;
-  board   : String;
-  winner  : String;
+  key ID          : UUID;
+  board           : String;
+  winner          : String;
+  createdAt       : DateTime;
+  completedAt     : DateTime;
 }
