@@ -3,6 +3,7 @@ namespace tictactoe;
 entity Sessions {
   key ID            : UUID;
       bestOf        : Integer default 3;
+      mode          : String default 'HvH';
       xWins         : Integer default 0;
       oWins         : Integer default 0;
       draws         : Integer default 0;
