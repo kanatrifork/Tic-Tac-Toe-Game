@@ -21,6 +21,7 @@ sap.ui.define(
           statusText: "Start a new session to play",
           canPlay: true,
           gameOver: false,
+          botThinking: false,
           gameState: "NOT_STARTED",
           history: [],
         });
@@ -29,6 +30,7 @@ sap.ui.define(
         const oSessionModel = new JSONModel({
           sessionId: null,
           bestOf: 3,
+          mode: "HvH",
           xWins: 0,
           oWins: 0,
           draws: 0,
@@ -51,6 +53,7 @@ sap.ui.define(
           statusText: "Start a new session to play",
           canPlay: true,
           gameOver: false,
+          botThinking: false,
           gameState: "NOT_STARTED",
           history: [],
         });
@@ -60,6 +63,7 @@ sap.ui.define(
         this.getView().getModel("session").setData({
           sessionId: null,
           bestOf: 3,
+          mode: "HvH",
           xWins: 0,
           oWins: 0,
           draws: 0,
@@ -88,9 +92,10 @@ sap.ui.define(
       onNewSession: async function () {
         const oSessionModel = this.getView().getModel("session");
         const iBestOf = parseInt(oSessionModel.getProperty("/bestOf"), 10);
+        const sMode = oSessionModel.getProperty("/mode") || "HvH";
 
         try {
-          const oSession = await this._callAction("/newSession(...)", { bestOf: iBestOf });
+          const oSession = await this._callAction("/newSession(...)", { bestOf: iBestOf, mode: sMode });
           this._applySession(oSession);
           this._startNewGame();
         } catch (oErr) {
@@ -142,8 +147,15 @@ sap.ui.define(
         const oModel = this.getView().getModel("game");
         const sGameId = oModel.getProperty("/gameId");
         const bGameOver = oModel.getProperty("/gameOver");
+        const bWaiting = oModel.getProperty("/botThinking");
 
-        if (!sGameId || bGameOver) return;
+        if (!sGameId || bGameOver || bWaiting) return;
+
+        const sMode = this.getView().getModel("session").getProperty("/mode");
+        if (sMode === "HvB") {
+          oModel.setProperty("/botThinking", true);
+          oModel.setProperty("/statusText", "Bot is thinking…");
+        }
 
         try {
           const oGame = await this._callAction("/makeMove(...)", { gameId: sGameId, position: iPos });
@@ -155,6 +167,8 @@ sap.ui.define(
         } catch (oErr) {
           const sMsg = oErr.error?.message ?? oErr.message ?? "Move failed";
           MessageBox.warning(sMsg);
+        } finally {
+          oModel.setProperty("/botThinking", false);
         }
       },
 
@@ -215,6 +229,7 @@ sap.ui.define(
 
         oModel.setProperty("/sessionId", oSession.ID);
         oModel.setProperty("/bestOf", oSession.bestOf);
+        oModel.setProperty("/mode", oSession.mode || "HvH");
         oModel.setProperty("/xWins", oSession.xWins);
         oModel.setProperty("/oWins", oSession.oWins);
         oModel.setProperty("/draws", oSession.draws);
@@ -222,10 +237,15 @@ sap.ui.define(
         oModel.setProperty("/winsNeeded", iWinsNeeded);
 
         if (oSession.sessionWinner) {
+          const sMode = oSession.mode || "HvH";
+          let sMsg;
+          if (sMode === "HvB") {
+            sMsg = oSession.sessionWinner === "X" ? "You win the session!" : "Bot wins the session!";
+          } else {
+            sMsg = "Player " + oSession.sessionWinner + " wins the session!";
+          }
           this.getView().getModel("game").setProperty("/gameState", "SESSION_OVER");
-          MessageBox.success("Player " + oSession.sessionWinner + " wins the session!", {
-            title: "Session Complete"
-          });
+          MessageBox.success(sMsg, { title: "Session Complete" });
         }
       },
 
@@ -272,13 +292,22 @@ sap.ui.define(
         const sCurrentPlayer = oGame.currentPlayer ||
           (aCells.filter((c) => c === "X").length <= aCells.filter((c) => c === "O").length ? "X" : "O");
 
+        const sMode = oSessionModel.getProperty("/mode") || "HvH";
         let sStatus;
         if (oGame.winner === "draw") {
           sStatus = "It's a draw!";
         } else if (oGame.winner) {
-          sStatus = "Player " + oGame.winner + " wins!";
+          if (sMode === "HvB") {
+            sStatus = oGame.winner === "X" ? "You win!" : "Bot wins!";
+          } else {
+            sStatus = "Player " + oGame.winner + " wins!";
+          }
         } else {
-          sStatus = "Player " + sCurrentPlayer + "'s turn";
+          if (sMode === "HvB") {
+            sStatus = sCurrentPlayer === "X" ? "Your turn" : "Bot's turn";
+          } else {
+            sStatus = "Player " + sCurrentPlayer + "'s turn";
+          }
         }
 
         this._saveIds(oGame, null);
@@ -302,7 +331,7 @@ sap.ui.define(
         }
         oModel.setProperty("/gameState", sGameState);
 
-        if (bOver && !bSuppressMessage) {
+        if (bOver && !bSuppressMessage && oGame.gameState !== "SESSION_OVER") {
           MessageBox.information(sStatus, { title: "Match Over" });
         }
       },

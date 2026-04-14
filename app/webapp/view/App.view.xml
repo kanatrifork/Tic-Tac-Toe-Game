@@ -12,6 +12,13 @@
 
           <VBox class="game-container">
             <HBox class="session-config">
+              <SegmentedButton id="modeSelect" selectedKey="{session>/mode}"
+                               enabled="{= ${game>/gameState} === 'NOT_STARTED' }">
+                <items>
+                  <SegmentedButtonItem key="HvH" text="vs Human"/>
+                  <SegmentedButtonItem key="HvB" text="vs Bot"/>
+                </items>
+              </SegmentedButton>
               <Select id="bestOfSelect" selectedKey="{session>/bestOf}"
                       enabled="{= ${game>/gameState} === 'NOT_STARTED' }">
                 <core:Item key="3" text="Best of 3"/>
@@ -33,6 +40,9 @@
 
             <VBox>
               <core:Fragment fragmentName="tictactoe.app.view.GameBoard" type="XML"/>
+              <Text text="You are X  ·  Bot is O"
+                    visible="{= ${session>/mode} === 'HvB' &amp;&amp; ${game>/gameState} !== 'NOT_STARTED' }"
+                    class="bot-hint"/>
             </VBox>
 
             <Button text="Next Match" press=".onNextMatch" type="Emphasized"
@@ -41,7 +51,9 @@
 
             <VBox visible="{= ${game>/gameState} === 'SESSION_OVER' }" class="session-complete">
               <MessageStrip
-                text="{= 'Player ' + ${session>/sessionWinner} + ' wins the session!'}"
+                text="{= ${session>/mode} === 'HvB'
+                  ? (${session>/sessionWinner} === 'X' ? 'You win the session!' : 'Bot wins the session!')
+                  : 'Player ' + ${session>/sessionWinner} + ' wins the session!'}"
                 type="Success"
                 showIcon="true"
                 class="session-winner"/>
