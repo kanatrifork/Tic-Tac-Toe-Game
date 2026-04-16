@@ -7,4 +7,5 @@ service CatalogService {
   action newSession(bestOf : Integer, mode : String)  returns Sessions;
   action newGame(sessionId : UUID)                    returns Games;
   action makeMove(gameId : UUID, position : Integer)  returns Games;
+  action botMove(gameId : UUID)                       returns Games;
 }

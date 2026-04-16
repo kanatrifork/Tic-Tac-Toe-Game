@@ -81,6 +81,31 @@ const askBotForMove = async (cells) => {
   return empty[Math.floor(Math.random() * empty.length)];
 };
 
+const applyWinnerToSession = async (Sessions, session, winner, sessionId) => {
+  const sessionUpdate = {};
+  if (winner === "X") {
+    sessionUpdate.xWins = session.xWins + 1;
+  } else if (winner === "O") {
+    sessionUpdate.oWins = session.oWins + 1;
+  } else if (winner === "draw") {
+    sessionUpdate.draws = session.draws + 1;
+  }
+
+  const winsNeeded = Math.floor(session.bestOf / 2) + 1;
+  const newXWins = sessionUpdate.xWins ?? session.xWins;
+  const newOWins = sessionUpdate.oWins ?? session.oWins;
+
+  if (newXWins >= winsNeeded) {
+    sessionUpdate.sessionWinner = "X";
+    sessionUpdate.completedAt = new Date().toISOString();
+  } else if (newOWins >= winsNeeded) {
+    sessionUpdate.sessionWinner = "O";
+    sessionUpdate.completedAt = new Date().toISOString();
+  }
+
+  await UPDATE(Sessions).set(sessionUpdate).where({ ID: sessionId });
+};
+
 module.exports = cds.service.impl(function () {
   const { Games, Sessions } = this.entities;
 
@@ -151,23 +176,11 @@ module.exports = cds.service.impl(function () {
       ? await SELECT.one.from(Sessions).where({ ID: game.session_ID })
       : null;
 
-    // Apply human move
     const cells = game.board.split("");
     if (cells[position] !== "-") return req.error(409, "Cell already taken");
 
     cells[position] = currentPlayer(cells);
-    let winner = checkWinner(cells);
-
-    let botPosition = null;
-
-    // In HvB mode let the bot reply if the game is still running
-    if (!winner && session?.mode === "HvB") {
-      botPosition = await askBotForMove(cells);
-      if (botPosition !== null && botPosition !== undefined) {
-        cells[botPosition] = "O";
-        winner = checkWinner(cells);
-      }
-    }
+    const winner = checkWinner(cells);
 
     const updated = {
       board: cells.join(""),
@@ -177,31 +190,53 @@ module.exports = cds.service.impl(function () {
 
     await UPDATE(Games).set(updated).where({ ID: gameId });
 
-    if (winner && game.session_ID) {
-      if (session) {
-        const sessionUpdate = {};
-        if (winner === "X") {
-          sessionUpdate.xWins = session.xWins + 1;
-        } else if (winner === "O") {
-          sessionUpdate.oWins = session.oWins + 1;
-        } else if (winner === "draw") {
-          sessionUpdate.draws = session.draws + 1;
-        }
+    if (winner && game.session_ID && session) {
+      await applyWinnerToSession(Sessions, session, winner, game.session_ID);
+    }
 
-        const winsNeeded = Math.floor(session.bestOf / 2) + 1;
-        const newXWins = sessionUpdate.xWins ?? session.xWins;
-        const newOWins = sessionUpdate.oWins ?? session.oWins;
+    const updatedSession = game.session_ID
+      ? await SELECT.one.from(Sessions).where({ ID: game.session_ID })
+      : null;
 
-        if (newXWins >= winsNeeded) {
-          sessionUpdate.sessionWinner = "X";
-          sessionUpdate.completedAt = new Date().toISOString();
-        } else if (newOWins >= winsNeeded) {
-          sessionUpdate.sessionWinner = "O";
-          sessionUpdate.completedAt = new Date().toISOString();
-        }
+    return {
+      ...game,
+      ...updated,
+      currentPlayer: currentPlayer(cells),
+      gameState: computeGameState({ ...game, ...updated }, updatedSession),
+    };
+  });
 
-        await UPDATE(Sessions).set(sessionUpdate).where({ ID: game.session_ID });
-      }
+  this.on("botMove", async (req) => {
+    const { gameId } = req.data;
+
+    const game = await SELECT.one.from(Games).where({ ID: gameId });
+    if (!game) return req.error(404, "Game not found");
+    if (game.winner) return { ...game, gameState: computeGameState(game, null) };
+
+    const session = game.session_ID
+      ? await SELECT.one.from(Sessions).where({ ID: game.session_ID })
+      : null;
+
+    const cells = game.board.split("");
+    const botPosition = await askBotForMove(cells);
+
+    if (botPosition === null || botPosition === undefined) {
+      return req.error(500, "Bot could not determine a move");
+    }
+
+    cells[botPosition] = "O";
+    const winner = checkWinner(cells);
+
+    const updated = {
+      board: cells.join(""),
+      winner: winner ?? null,
+      completedAt: winner ? new Date().toISOString() : null,
+    };
+
+    await UPDATE(Games).set(updated).where({ ID: gameId });
+
+    if (winner && game.session_ID && session) {
+      await applyWinnerToSession(Sessions, session, winner, game.session_ID);
     }
 
     const updatedSession = game.session_ID

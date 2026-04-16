@@ -47,16 +47,18 @@ sap.ui.define(
       },
 
       _resetGameModel: function () {
-        this.getView().getModel("game").setData({
-          gameId: null,
-          cells: ["", "", "", "", "", "", "", "", ""],
-          statusText: "Start a new session to play",
-          canPlay: true,
-          gameOver: false,
-          botThinking: false,
-          gameState: "NOT_STARTED",
-          history: [],
-        });
+        this.getView()
+          .getModel("game")
+          .setData({
+            gameId: null,
+            cells: ["", "", "", "", "", "", "", "", ""],
+            statusText: "Start a new session to play",
+            canPlay: true,
+            gameOver: false,
+            botThinking: false,
+            gameState: "NOT_STARTED",
+            history: [],
+          });
       },
 
       _resetSessionModel: function () {
@@ -86,7 +88,8 @@ sap.ui.define(
 
       _saveIds: function (oGame, oSession) {
         if (oGame?.ID) localStorage.setItem(GAME_STORAGE_KEY, oGame.ID);
-        if (oSession?.ID) localStorage.setItem(SESSION_STORAGE_KEY, oSession.ID);
+        if (oSession?.ID)
+          localStorage.setItem(SESSION_STORAGE_KEY, oSession.ID);
       },
 
       onNewSession: async function () {
@@ -95,7 +98,10 @@ sap.ui.define(
         const sMode = oSessionModel.getProperty("/mode") || "HvH";
 
         try {
-          const oSession = await this._callAction("/newSession(...)", { bestOf: iBestOf, mode: sMode });
+          const oSession = await this._callAction("/newSession(...)", {
+            bestOf: iBestOf,
+            mode: sMode,
+          });
           this._applySession(oSession);
           this._startNewGame();
         } catch (oErr) {
@@ -112,7 +118,9 @@ sap.ui.define(
       },
 
       onSessionButton: function () {
-        const sGameState = this.getView().getModel("game").getProperty("/gameState");
+        const sGameState = this.getView()
+          .getModel("game")
+          .getProperty("/gameState");
         if (sGameState === "NOT_STARTED") {
           this.onNewSession();
         } else {
@@ -134,7 +142,9 @@ sap.ui.define(
         oGameModel.setProperty("/gameOver", false);
 
         try {
-          const oGame = await this._callAction("/newGame(...)", { sessionId: sSessionId });
+          const oGame = await this._callAction("/newGame(...)", {
+            sessionId: sSessionId,
+          });
           this._applyGame(oGame);
         } catch (oErr) {
           MessageBox.error("Could not start a new game: " + oErr.message);
@@ -152,17 +162,31 @@ sap.ui.define(
         if (!sGameId || bGameOver || bWaiting) return;
 
         const sMode = this.getView().getModel("session").getProperty("/mode");
-        if (sMode === "HvB") {
-          oModel.setProperty("/botThinking", true);
-          oModel.setProperty("/statusText", "Bot is thinking…");
-        }
 
         try {
-          const oGame = await this._callAction("/makeMove(...)", { gameId: sGameId, position: iPos });
+          const oGame = await this._callAction("/makeMove(...)", {
+            gameId: sGameId,
+            position: iPos,
+          });
           this._applyGame(oGame);
+
           if (oGame.winner) {
             this._loadHistory();
             this._loadSessionData();
+            return;
+          }
+
+          if (sMode === "HvB") {
+            oModel.setProperty("/botThinking", true);
+            oModel.setProperty("/statusText", "Bot is thinking…");
+            const oBotGame = await this._callAction("/botMove(...)", {
+              gameId: sGameId,
+            });
+            this._applyGame(oBotGame);
+            if (oBotGame.winner) {
+              this._loadHistory();
+              this._loadSessionData();
+            }
           }
         } catch (oErr) {
           const sMsg = oErr.error?.message ?? oErr.message ?? "Move failed";
@@ -174,7 +198,9 @@ sap.ui.define(
 
       _loadSessionData: async function (sSessionId) {
         if (!sSessionId) {
-          sSessionId = this.getView().getModel("session").getProperty("/sessionId");
+          sSessionId = this.getView()
+            .getModel("session")
+            .getProperty("/sessionId");
         }
         if (!sSessionId) return;
 
@@ -240,11 +266,16 @@ sap.ui.define(
           const sMode = oSession.mode || "HvH";
           let sMsg;
           if (sMode === "HvB") {
-            sMsg = oSession.sessionWinner === "X" ? "You win the session!" : "Bot wins the session!";
+            sMsg =
+              oSession.sessionWinner === "X"
+                ? "You win the session!"
+                : "Bot wins the session!";
           } else {
             sMsg = "Player " + oSession.sessionWinner + " wins the session!";
           }
-          this.getView().getModel("game").setProperty("/gameState", "SESSION_OVER");
+          this.getView()
+            .getModel("game")
+            .setProperty("/gameState", "SESSION_OVER");
           MessageBox.success(sMsg, { title: "Session Complete" });
         }
       },
@@ -262,7 +293,9 @@ sap.ui.define(
           .then((aContexts) => {
             const aHistory = aContexts.map((oCtx) => {
               const oGame = oCtx.getObject();
-              oGame.completedAtFormatted = this._formatDateTime(oGame.completedAt);
+              oGame.completedAtFormatted = this._formatDateTime(
+                oGame.completedAt,
+              );
               return oGame;
             });
             this.getView().getModel("game").setProperty("/history", aHistory);
@@ -277,7 +310,7 @@ sap.ui.define(
           month: "short",
           day: "numeric",
           hour: "numeric",
-          minute: "2-digit"
+          minute: "2-digit",
         });
       },
 
@@ -289,8 +322,12 @@ sap.ui.define(
         const bOver = !!oGame.winner;
 
         // Use backend-provided currentPlayer, or compute fallback for loaded games
-        const sCurrentPlayer = oGame.currentPlayer ||
-          (aCells.filter((c) => c === "X").length <= aCells.filter((c) => c === "O").length ? "X" : "O");
+        const sCurrentPlayer =
+          oGame.currentPlayer ||
+          (aCells.filter((c) => c === "X").length <=
+          aCells.filter((c) => c === "O").length
+            ? "X"
+            : "O");
 
         const sMode = oSessionModel.getProperty("/mode") || "HvH";
         let sStatus;

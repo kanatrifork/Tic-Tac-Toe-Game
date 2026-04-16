@@ -103,3 +103,7 @@
   font-size: 0.8rem;
   color: #6c757d;
 }
+
+.session-config > div > ul > li {
+  width: 100px;
+}
