@@ -1,110 +1,11 @@
 const cds = require("@sap/cds");
-const OpenAI = require("openai");
-
-const WINS = [
-  [0, 1, 2],
-  [3, 4, 5],
-  [6, 7, 8],
-  [0, 3, 6],
-  [1, 4, 7],
-  [2, 5, 8],
-  [0, 4, 8],
-  [2, 4, 6],
-];
-
-const checkWinner = (cells) => {
-  for (const [a, b, c] of WINS) {
-    if (cells[a] !== "-" && cells[a] === cells[b] && cells[b] === cells[c]) {
-      return cells[a];
-    }
-  }
-  return cells.every((c) => c !== "-") ? "draw" : null;
-};
-
-const currentPlayer = (cells) =>
-  cells.filter((c) => c === "X").length <= cells.filter((c) => c === "O").length
-    ? "X"
-    : "O";
-
-const computeGameState = (game, session) => {
-  if (session?.sessionWinner) return "SESSION_OVER";
-  if (game.winner) return "MATCH_OVER";
-  return "PLAYING";
-};
-
-const getAiClient = () => {
-  return new OpenAI({
-    apiKey: process.env.AI_API_KEY || "no-key",
-    baseURL: process.env.AI_BASE_URL || "https://api.openai.com/v1",
-  });
-};
-
-const askBotForMove = async (cells) => {
-  const boardDisplay = cells
-    .map((c, i) => `${i}:${c}`)
-    .join(" ");
-
-  try {
-    const client = getAiClient();
-    const model = process.env.AI_MODEL || "gpt-4o-mini";
-
-    const response = await client.chat.completions.create({
-      model,
-      messages: [
-        {
-          role: "system",
-          content:
-            "You are playing tic-tac-toe as O. Board positions are numbered 0-8 " +
-            "(left-to-right, top-to-bottom). X and O are placed pieces; - is empty. " +
-            "Reply with ONLY a single digit (0-8) for your move. Pick an empty (-) cell.",
-        },
-        {
-          role: "user",
-          content: `Current board: ${boardDisplay}. Your move (O)?`,
-        },
-      ],
-      max_tokens: 5,
-      temperature: 0.2,
-    });
-
-    const text = response.choices[0]?.message?.content?.trim() ?? "";
-    const pos = parseInt(text, 10);
-    if (!isNaN(pos) && pos >= 0 && pos <= 8 && cells[pos] === "-") {
-      return pos;
-    }
-  } catch (err) {
-    console.error("[Bot] AI API error:", err.message);
-  }
-
-  // Fallback: pick a random empty cell
-  const empty = cells.reduce((acc, c, i) => (c === "-" ? [...acc, i] : acc), []);
-  return empty[Math.floor(Math.random() * empty.length)];
-};
-
-const applyWinnerToSession = async (Sessions, session, winner, sessionId) => {
-  const sessionUpdate = {};
-  if (winner === "X") {
-    sessionUpdate.xWins = session.xWins + 1;
-  } else if (winner === "O") {
-    sessionUpdate.oWins = session.oWins + 1;
-  } else if (winner === "draw") {
-    sessionUpdate.draws = session.draws + 1;
-  }
-
-  const winsNeeded = Math.floor(session.bestOf / 2) + 1;
-  const newXWins = sessionUpdate.xWins ?? session.xWins;
-  const newOWins = sessionUpdate.oWins ?? session.oWins;
-
-  if (newXWins >= winsNeeded) {
-    sessionUpdate.sessionWinner = "X";
-    sessionUpdate.completedAt = new Date().toISOString();
-  } else if (newOWins >= winsNeeded) {
-    sessionUpdate.sessionWinner = "O";
-    sessionUpdate.completedAt = new Date().toISOString();
-  }
-
-  await UPDATE(Sessions).set(sessionUpdate).where({ ID: sessionId });
-};
+const {
+  checkWinner,
+  currentPlayer,
+  computeGameState,
+  applyWinnerToSession,
+} = require("./game-logic");
+const { askBotForMove } = require("./bot");
 
 module.exports = cds.service.impl(function () {
   const { Games, Sessions } = this.entities;
@@ -190,13 +91,11 @@ module.exports = cds.service.impl(function () {
 
     await UPDATE(Games).set(updated).where({ ID: gameId });
 
+    let updatedSession = session;
     if (winner && game.session_ID && session) {
-      await applyWinnerToSession(Sessions, session, winner, game.session_ID);
+      const sessionUpdate = await applyWinnerToSession(Sessions, session, winner, game.session_ID);
+      updatedSession = { ...session, ...sessionUpdate };
     }
-
-    const updatedSession = game.session_ID
-      ? await SELECT.one.from(Sessions).where({ ID: game.session_ID })
-      : null;
 
     return {
       ...game,
@@ -235,13 +134,11 @@ module.exports = cds.service.impl(function () {
 
     await UPDATE(Games).set(updated).where({ ID: gameId });
 
+    let updatedSession = session;
     if (winner && game.session_ID && session) {
-      await applyWinnerToSession(Sessions, session, winner, game.session_ID);
+      const sessionUpdate = await applyWinnerToSession(Sessions, session, winner, game.session_ID);
+      updatedSession = { ...session, ...sessionUpdate };
     }
-
-    const updatedSession = game.session_ID
-      ? await SELECT.one.from(Sessions).where({ ID: game.session_ID })
-      : null;
 
     return {
       ...game,
