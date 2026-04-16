@@ -7,7 +7,7 @@ const {
 } = require("./game-logic");
 const { askBotForMove } = require("./bot");
 
-const applyMove = async (game, cells) => {
+const applyMove = async (game, cells, Games, Sessions) => {
   const winner = checkWinner(cells);
   const updated = {
     board: cells.join(""),
@@ -115,7 +115,7 @@ module.exports = cds.service.impl(function () {
     if (cells[position] !== "-") return req.error(409, "Cell already taken");
 
     cells[position] = currentPlayer(cells);
-    return applyMove(game, cells);
+    return applyMove(game, cells, Games, Sessions);
   });
 
   this.on("botMove", async (req) => {
@@ -133,6 +133,6 @@ module.exports = cds.service.impl(function () {
     }
 
     cells[botPosition] = currentPlayer(cells);
-    return { ...(await applyMove(game, cells)), botPosition };
+    return { ...(await applyMove(game, cells, Games, Sessions)), botPosition };
   });
 });
