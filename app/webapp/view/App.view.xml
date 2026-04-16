@@ -28,6 +28,17 @@
               <Button text="{= ${game>/gameState} === 'NOT_STARTED' ? 'Start Session' : 'Reset Session' }"
                       press=".onSessionButton" type="Emphasized"/>
             </HBox>
+            <HBox class="difficulty-row">
+              <SegmentedButton selectedKey="{session>/difficulty}"
+                               visible="{= ${session>/mode} === 'HvB' }"
+                               enabled="{= ${game>/gameState} === 'NOT_STARTED' }">
+                <items>
+                  <SegmentedButtonItem key="easy"   text="Easy"/>
+                  <SegmentedButtonItem key="medium" text="Medium"/>
+                  <SegmentedButtonItem key="hard"   text="Hard"/>
+                </items>
+              </SegmentedButton>
+            </HBox>
 
             <VBox class="session-info-wrapper">
               <HBox class="score-display" visible="{= ${game>/gameState} !== 'NOT_STARTED' }">

@@ -32,7 +32,16 @@
   display: flex;
   gap: 0.5rem;
   align-items: center;
-  margin-bottom: 1rem;
+}
+
+.difficulty-row {
+  min-height: 2.75rem;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.difficulty-row > div > ul > li {
+  width: 100px;
 }
 
 .session-info-wrapper {

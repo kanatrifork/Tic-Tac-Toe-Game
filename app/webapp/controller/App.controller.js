@@ -31,6 +31,7 @@ sap.ui.define(
           sessionId: null,
           bestOf: 3,
           mode: "HvH",
+          difficulty: "medium",
           xWins: 0,
           oWins: 0,
           draws: 0,
@@ -66,6 +67,7 @@ sap.ui.define(
           sessionId: null,
           bestOf: 3,
           mode: "HvH",
+          difficulty: "medium",
           xWins: 0,
           oWins: 0,
           draws: 0,
@@ -96,11 +98,13 @@ sap.ui.define(
         const oSessionModel = this.getView().getModel("session");
         const iBestOf = parseInt(oSessionModel.getProperty("/bestOf"), 10);
         const sMode = oSessionModel.getProperty("/mode") || "HvH";
+        const sDifficulty = oSessionModel.getProperty("/difficulty") || "medium";
 
         try {
           const oSession = await this._callAction("/newSession(...)", {
             bestOf: iBestOf,
             mode: sMode,
+            difficulty: sDifficulty,
           });
           this._applySession(oSession);
           this._startNewGame();
@@ -256,6 +260,7 @@ sap.ui.define(
         oModel.setProperty("/sessionId", oSession.ID);
         oModel.setProperty("/bestOf", oSession.bestOf);
         oModel.setProperty("/mode", oSession.mode || "HvH");
+        oModel.setProperty("/difficulty", oSession.difficulty || "medium");
         oModel.setProperty("/xWins", oSession.xWins);
         oModel.setProperty("/oWins", oSession.oWins);
         oModel.setProperty("/draws", oSession.draws);

@@ -8,6 +8,7 @@ entity Sessions {
       oWins         : Integer default 0;
       draws         : Integer default 0;
       sessionWinner : String;
+      difficulty    : String default 'medium';
       createdAt     : DateTime;
       completedAt   : DateTime;
       games         : Composition of many Games

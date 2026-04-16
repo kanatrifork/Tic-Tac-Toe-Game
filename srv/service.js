@@ -44,7 +44,7 @@ module.exports = cds.service.impl(function () {
   const { Games, Sessions } = this.entities;
 
   this.on("newSession", async (req) => {
-    const { bestOf, mode } = req.data;
+    const { bestOf, mode, difficulty } = req.data;
 
     if (![3, 5, 7].includes(bestOf)) {
       return req.error(400, "bestOf must be 3, 5, or 7");
@@ -53,10 +53,14 @@ module.exports = cds.service.impl(function () {
     const validModes = ["HvH", "HvB"];
     const sessionMode = validModes.includes(mode) ? mode : "HvH";
 
+    const validDifficulties = ["easy", "medium", "hard"];
+    const sessionDifficulty = validDifficulties.includes(difficulty) ? difficulty : "medium";
+
     const entry = {
       ID: cds.utils.uuid(),
       bestOf,
       mode: sessionMode,
+      difficulty: sessionDifficulty,
       xWins: 0,
       oWins: 0,
       draws: 0,
@@ -125,8 +129,13 @@ module.exports = cds.service.impl(function () {
     if (!game) return req.error(404, "Game not found");
     if (game.winner) return req.error(409, "Game over");
 
+    const session = game.session_ID
+      ? await SELECT.one.from(Sessions).where({ ID: game.session_ID })
+      : null;
+    const difficulty = session?.difficulty ?? "medium";
+
     const cells = game.board.split("");
-    const botPosition = await askBotForMove(cells);
+    const botPosition = await askBotForMove(cells, difficulty);
 
     if (botPosition === null || botPosition === undefined) {
       return req.error(500, "Bot could not determine a move");

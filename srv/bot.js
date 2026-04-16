@@ -5,7 +5,34 @@ const aiClient = new OpenAI({
   baseURL: process.env.AI_BASE_URL || "https://api.openai.com/v1",
 });
 
-const askBotForMove = async (cells) => {
+const DIFFICULTY_CONFIG = {
+  easy: {
+    temperature: 0.9,
+    systemPrompt:
+      "You are playing tic-tac-toe as O. Board positions are numbered 0-8 " +
+      "(left-to-right, top-to-bottom). X and O are placed pieces; - is empty. " +
+      "You are a beginner who sometimes misses obvious winning moves or blocks. " +
+      "Reply with ONLY a single digit (0-8) for your move. Pick an empty (-) cell.",
+  },
+  medium: {
+    temperature: 0.4,
+    systemPrompt:
+      "You are playing tic-tac-toe as O. Board positions are numbered 0-8 " +
+      "(left-to-right, top-to-bottom). X and O are placed pieces; - is empty. " +
+      "Reply with ONLY a single digit (0-8) for your move. Pick an empty (-) cell.",
+  },
+  hard: {
+    temperature: 0.1,
+    systemPrompt:
+      "You are playing tic-tac-toe as O. Board positions are numbered 0-8 " +
+      "(left-to-right, top-to-bottom). X and O are placed pieces; - is empty. " +
+      "Play optimally: always take a winning move if available, always block X from winning, " +
+      "prefer the center then corners. Reply with ONLY a single digit (0-8) for your move. Pick an empty (-) cell.",
+  },
+};
+
+const askBotForMove = async (cells, difficulty = "medium") => {
+  const config = DIFFICULTY_CONFIG[difficulty] ?? DIFFICULTY_CONFIG.medium;
   const boardDisplay = cells.map((c, i) => `${i}:${c}`).join(" ");
 
   try {
@@ -16,10 +43,7 @@ const askBotForMove = async (cells) => {
       messages: [
         {
           role: "system",
-          content:
-            "You are playing tic-tac-toe as O. Board positions are numbered 0-8 " +
-            "(left-to-right, top-to-bottom). X and O are placed pieces; - is empty. " +
-            "Reply with ONLY a single digit (0-8) for your move. Pick an empty (-) cell.",
+          content: config.systemPrompt,
         },
         {
           role: "user",
@@ -27,7 +51,7 @@ const askBotForMove = async (cells) => {
         },
       ],
       max_tokens: 5,
-      temperature: 0.2,
+      temperature: config.temperature,
     });
 
     const text = response.choices[0]?.message?.content?.trim() ?? "";
