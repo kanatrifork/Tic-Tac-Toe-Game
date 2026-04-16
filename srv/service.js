@@ -7,6 +7,39 @@ const {
 } = require("./game-logic");
 const { askBotForMove } = require("./bot");
 
+const applyMove = async (game, cells) => {
+  const winner = checkWinner(cells);
+  const updated = {
+    board: cells.join(""),
+    winner: winner ?? null,
+    completedAt: winner ? new Date().toISOString() : null,
+  };
+
+  await UPDATE(Games).set(updated).where({ ID: game.ID });
+
+  const session = game.session_ID
+    ? await SELECT.one.from(Sessions).where({ ID: game.session_ID })
+    : null;
+
+  let updatedSession = session;
+  if (winner && session) {
+    const patch = await applyWinnerToSession(
+      Sessions,
+      session,
+      winner,
+      game.session_ID,
+    );
+    updatedSession = { ...session, ...patch };
+  }
+
+  return {
+    ...game,
+    ...updated,
+    currentPlayer: currentPlayer(cells),
+    gameState: computeGameState({ ...game, ...updated }, updatedSession),
+  };
+};
+
 module.exports = cds.service.impl(function () {
   const { Games, Sessions } = this.entities;
 
@@ -44,7 +77,8 @@ module.exports = cds.service.impl(function () {
 
     const session = await SELECT.one.from(Sessions).where({ ID: sessionId });
     if (!session) return req.error(404, "Session not found");
-    if (session.sessionWinner) return req.error(409, "Session already completed");
+    if (session.sessionWinner)
+      return req.error(409, "Session already completed");
 
     const entry = {
       ID: cds.utils.uuid(),
@@ -81,28 +115,7 @@ module.exports = cds.service.impl(function () {
     if (cells[position] !== "-") return req.error(409, "Cell already taken");
 
     cells[position] = currentPlayer(cells);
-    const winner = checkWinner(cells);
-
-    const updated = {
-      board: cells.join(""),
-      winner: winner ?? null,
-      completedAt: winner ? new Date().toISOString() : null,
-    };
-
-    await UPDATE(Games).set(updated).where({ ID: gameId });
-
-    let updatedSession = session;
-    if (winner && game.session_ID && session) {
-      const sessionUpdate = await applyWinnerToSession(Sessions, session, winner, game.session_ID);
-      updatedSession = { ...session, ...sessionUpdate };
-    }
-
-    return {
-      ...game,
-      ...updated,
-      currentPlayer: currentPlayer(cells),
-      gameState: computeGameState({ ...game, ...updated }, updatedSession),
-    };
+    return applyMove(game, cells);
   });
 
   this.on("botMove", async (req) => {
@@ -110,11 +123,7 @@ module.exports = cds.service.impl(function () {
 
     const game = await SELECT.one.from(Games).where({ ID: gameId });
     if (!game) return req.error(404, "Game not found");
-    if (game.winner) return { ...game, gameState: computeGameState(game, null) };
-
-    const session = game.session_ID
-      ? await SELECT.one.from(Sessions).where({ ID: game.session_ID })
-      : null;
+    if (game.winner) return req.error(409, "Game over");
 
     const cells = game.board.split("");
     const botPosition = await askBotForMove(cells);
@@ -123,29 +132,7 @@ module.exports = cds.service.impl(function () {
       return req.error(500, "Bot could not determine a move");
     }
 
-    cells[botPosition] = "O";
-    const winner = checkWinner(cells);
-
-    const updated = {
-      board: cells.join(""),
-      winner: winner ?? null,
-      completedAt: winner ? new Date().toISOString() : null,
-    };
-
-    await UPDATE(Games).set(updated).where({ ID: gameId });
-
-    let updatedSession = session;
-    if (winner && game.session_ID && session) {
-      const sessionUpdate = await applyWinnerToSession(Sessions, session, winner, game.session_ID);
-      updatedSession = { ...session, ...sessionUpdate };
-    }
-
-    return {
-      ...game,
-      ...updated,
-      currentPlayer: currentPlayer(cells),
-      gameState: computeGameState({ ...game, ...updated }, updatedSession),
-      botPosition,
-    };
+    cells[botPosition] = currentPlayer(cells);
+    return { ...(await applyMove(game, cells)), botPosition };
   });
 });
